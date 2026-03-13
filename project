@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Online Attendance App</title>
+
+<style>
+body{
+font-family:Arial;
+background:#eef2f7;
+text-align:center;
+}
+
+header{
+background:#1f2937;
+color:white;
+padding:20px;
+}
+
+.container{
+width:90%;
+margin:auto;
+margin-top:20px;
+background:white;
+padding:20px;
+border-radius:10px;
+box-shadow:0 0 10px rgba(0,0,0,0.1);
+}
+
+input{
+padding:10px;
+margin:10px;
+width:220px;
+}
+
+button{
+padding:8px 15px;
+margin:5px;
+border:none;
+border-radius:5px;
+cursor:pointer;
+}
+
+.add{background:#16a34a;color:white;}
+.present{background:#2563eb;color:white;}
+.absent{background:#dc2626;color:white;}
+
+table{
+width:100%;
+margin-top:20px;
+border-collapse:collapse;
+}
+
+th,td{
+border:1px solid #ccc;
+padding:10px;
+}
+
+th{
+background:#111827;
+color:white;
+}
+</style>
+</head>
+<body>
+
+<header>
+<h1>Online Attendance System</h1>
+</header>
+
+<div class="container">
+
+<input type="text" id="studentName" placeholder="Enter student name">
+<button class="add" onclick="addStudent()">Add Student</button>
+
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Attended</th>
+<th>Missed</th>
+<th>Percentage</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody id="studentTable"></tbody>
+</table>
+
+</div>
+
+<!-- Firebase -->
+<script type="module">
+
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getDatabase, ref, push, onValue, update } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+// ✅ Replace with your Firebase config
+const firebaseConfig = {
+apiKey: "YOUR_API_KEY",
+authDomain: "YOUR_PROJECT.firebaseapp.com",
+databaseURL: "https://YOUR_PROJECT.firebaseio.com",
+projectId: "YOUR_PROJECT_ID",
+storageBucket: "YOUR_PROJECT.appspot.com",
+messagingSenderId: "YOUR_MSG_ID",
+appId: "YOUR_APP_ID"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
+function addStudent(){
+  let name=document.getElementById("studentName").value.trim();
+  if(name===""){ alert("Enter student name"); return; }
+
+  push(ref(db,"students"), {
+    name:name,
+    attended:0,
+    missed:0
+  });
+
+  document.getElementById("studentName").value="";
+}
+
+// Listen for real-time changes
+onValue(ref(db,"students"), snapshot=>{
+  const data = snapshot.val();
+  let table="";
+  for(let key in data){
+    let s=data[key];
+    let total = s.attended+s.missed;
+    let percent = total===0 ? 0 : ((s.attended/total)*100).toFixed(1);
+    table += `<tr>
+      <td>${s.name}</td>
+      <td>${s.attended}</td>
+      <td>${s.missed}</td>
+      <td>${percent}%</td>
+      <td>
+        <button class="present" onclick="markPresent('${key}')">Present</button>
+        <button class="absent" onclick="markAbsent('${key}')">Absent</button>
+      </td>
+    </tr>`;
+  }
+  document.getElementById("studentTable").innerHTML = table;
+});
+
+// Functions to mark attendance
+window.markPresent = function(key){
+  const studentRef = ref(db,"students/"+key);
+  onValue(studentRef, snapshot=>{
+    const s = snapshot.val();
+    update(studentRef, {attended: s.attended+1});
+  }, {onlyOnce:true});
+}
+
+window.markAbsent = function(key){
+  const studentRef = ref(db,"students/"+key);
+  onValue(studentRef, snapshot=>{
+    const s = snapshot.val();
+    update(studentRef, {missed: s.missed+1});
+  }, {onlyOnce:true});
+}
+
+window.addStudent = addStudent;
+
+</script>
+
+</body>
+</html>
